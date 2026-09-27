@@ -951,6 +951,52 @@ transient, so stub them to sentinels and check which one is chosen."
    (promptu--point-down)
    (should (null promptu--undo-stack))))
 
+;; Drag
+
+(ert-deftest promptu-drag-last-up-walks-and-clamps ()
+  "Dragging from the end moves the last entry; the point follows it."
+  (promptu-test--with-session
+   (setq promptu--session '("a" "b" "c"))
+   (promptu--drag-up)
+   (should (equal promptu--session '("a" "c" "b")))
+   (should (equal promptu--point 2))
+   (promptu--drag-up)
+   (should (equal promptu--session '("c" "a" "b")))
+   (should (equal promptu--point 1))
+   (should (promptu--drag-up-inapt-p))
+   (promptu--drag-up)                    ; no-op at the top
+   (should (equal promptu--session '("c" "a" "b")))
+   (should (= (length promptu--undo-stack) 2))))
+
+(ert-deftest promptu-drag-down-back-to-end ()
+  (promptu-test--with-session
+   (setq promptu--session '("a" "b" "c") promptu--point 1)
+   (promptu--drag-down)
+   (should (equal promptu--session '("b" "a" "c")))
+   (should (equal promptu--point 2))
+   (promptu--drag-down)
+   (should (equal promptu--session '("b" "c" "a")))
+   (should (null promptu--point))
+   (should (promptu--drag-down-inapt-p))))
+
+(ert-deftest promptu-drag-inapt-without-target ()
+  (let ((promptu--session nil) (promptu--point nil))
+    (should (promptu--drag-up-inapt-p))
+    (should (promptu--drag-down-inapt-p)))
+  (let ((promptu--session '("a" "b")) (promptu--point 0))
+    (should (promptu--drag-up-inapt-p))
+    (should (promptu--drag-down-inapt-p))))
+
+(ert-deftest promptu-drag-does-not-mutate-history ()
+  "The swap works on a copy, so a recalled history entry stays intact."
+  (promptu-test--with-session
+   (let ((recalled (list "a" "b")))
+     (setq promptu--session recalled)
+     (promptu--drag-up)
+     (should (equal recalled '("a" "b")))
+     (promptu--undo)
+     (should (equal promptu--session '("a" "b"))))))
+
 (ert-deftest promptu-point-up-inapt-p ()
   (let ((promptu--session nil) (promptu--point nil))
     (should (promptu--point-up-inapt-p)))

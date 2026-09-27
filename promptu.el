@@ -533,6 +533,44 @@ Safe no-op when there is nothing above it."
             promptu--history-index nil)
       (promptu--point-set (1- i)))))
 
+(defun promptu--drag-target (delta)
+  "Index DELTA away from the entry above the point, or nil if out of range."
+  (let ((j (+ (promptu--point-index) -1 delta)))
+    (and (promptu--target-entry) (<= 0 j) (< j (length promptu--session)) j)))
+
+(defun promptu--drag (delta)
+  "Swap the entry above the point with the one DELTA away.
+The point follows the dragged entry, so repeated drags keep moving it.
+Safe no-op when there is nothing to drag or no neighbor to swap with."
+  (when-let ((j (promptu--drag-target delta)))
+    (promptu--checkpoint)
+    (let* ((i (1- (promptu--point-index)))
+           (session (copy-sequence promptu--session))
+           (entry (nth i session)))
+      (setf (nth i session) (nth j session)
+            (nth j session) entry)
+      (setq promptu--session session
+            promptu--history-index nil)
+      (promptu--point-set (1+ j)))))
+
+(defun promptu--drag-up ()
+  "Move the entry above the point up one position."
+  (interactive)
+  (promptu--drag -1))
+
+(defun promptu--drag-down ()
+  "Move the entry above the point down one position."
+  (interactive)
+  (promptu--drag 1))
+
+(defun promptu--drag-up-inapt-p ()
+  "Non-nil when \\`C-S-p' would do nothing."
+  (null (promptu--drag-target -1)))
+
+(defun promptu--drag-down-inapt-p ()
+  "Non-nil when \\`C-S-n' would do nothing."
+  (null (promptu--drag-target 1)))
+
 (defun promptu--replace-entry (n text free)
   "Replace session entry N with TEXT, marked free-text when FREE.
 Checkpoints for undo and leaves history navigation."
@@ -878,7 +916,7 @@ quitting the menu keeps the in-progress prompt too."
 
 (defconst promptu--reserved-keys
   '("-" "RET" "<return>" "M-w" "DEL" "<backspace>" "M-e" "M-E" "M-b" "M-p" "M-n"
-    "M-r" "C-p" "C-n" "C-/" "C-M-/" "q")
+    "M-r" "C-p" "C-n" "C-S-p" "C-S-n" "C-/" "C-M-/" "q")
   "Keys reserved for menu control; block keys must avoid these.")
 
 (defun promptu--reserved-key-p (key)
@@ -1022,6 +1060,14 @@ which act on the last entry, act on the entire prompt."
         (promptu--point "edit at point")
         (t "edit last")))
 
+(defun promptu--drag-up-description (&rest _)
+  "Dynamic label for the \`C-S-p' suffix."
+  (if promptu--point "drag up" "drag last up"))
+
+(defun promptu--drag-down-description (&rest _)
+  "Dynamic label for the \`C-S-n' suffix."
+  (if promptu--point "drag down" "drag last down"))
+
 (defun promptu--history-prev-inapt-p ()
   "Non-nil when `M-p' would do nothing.
 That is when history is empty, or navigation is already at the oldest
@@ -1081,7 +1127,13 @@ Edits take effect the next time the menu opens."
     ("C-p" "up"   promptu--point-up
      :inapt-if promptu--point-up-inapt-p :transient t)
     ("C-n" "down" promptu--point-down
-     :inapt-if-nil promptu--point :transient t)]
+     :inapt-if-nil promptu--point :transient t)
+    ("C-S-p" promptu--drag-up
+     :description promptu--drag-up-description
+     :inapt-if promptu--drag-up-inapt-p :transient t)
+    ("C-S-n" promptu--drag-down
+     :description promptu--drag-down-description
+     :inapt-if promptu--drag-down-inapt-p :transient t)]
    ["History"
     ("M-p" "older"  promptu--history-prev
      :inapt-if promptu--history-prev-inapt-p :transient t)

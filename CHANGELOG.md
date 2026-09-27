@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `C-S-p` / `C-S-n` drag the last entry (or the entry above the point) up and
+  down.
+
 ## [1.2.0] - 2026-09-18
 
 ### Added
